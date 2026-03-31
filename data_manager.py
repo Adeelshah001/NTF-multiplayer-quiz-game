@@ -36,7 +36,7 @@ def get_questions():
 def add_question(question, a, b, c, d, correct):
   questions = get_questions()
 
-  # ADding the choices of the questions
+  # Adding the choices of the questions
   queustions.append({
     "question": question, 
     "A": a,
@@ -45,6 +45,39 @@ def add_question(question, a, b, c, d, correct):
     "D": d,
     "correct": correct
   })
+
+# --- Leaderboard Management ---
+
+# Taking the leaderboard
+def get_leaderboawrd():
+  leaderboard = load_jason(LEADERBOARD_FILE, default=[])
+  return sorted(leaderboard, key=lambda x: x["score"], reverse=True)
+
+# Adding new score to leaderboard
+def save_score(player_name, score):
+  leaderboard = load_json(LEADERBOARD_FILE, default=[])
+  leaderboard.append({
+    "player": player_name,
+    "score": score
+  })
+  save_jason(LEADERBOARD_FILE, leaderboard)
+
+# --- Game History Management ---
+
+# Record a completed game session
+def add_game_history(player_name, score, total_questions):
+  history = load_json(HISTORY_FILE, default=[])
+  history.append({
+    "player": player_name,
+    "score": score, 
+    "total_questions": total_questions
+  })
+
+# Return all past game sessions
+def get_game_history():
+  return load_json(HISTORY_FILE, defaukt=[])
+  
+
 
 
   
