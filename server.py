@@ -347,7 +347,9 @@ def run_game():
             f"{question['choices'][0]}|{question['choices'][1]}|"
             f"{question['choices'][2]}|{question['choices'][3]}"
         )
-
+        
+        broadcast_udp(f"INFO|You have {ANSWER_TIMEOUT} seconds to answer.")
+        
         broadcast_udp(question_message)
         print(f"Sent {question_id}: {question['prompt']}")
 
