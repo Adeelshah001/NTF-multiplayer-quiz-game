@@ -18,7 +18,7 @@ UDP_PORT = 5001
 MAX_PLAYERS = 4
 
 # // Number of rounds to play
-ROUNDS = 2
+ROUNDS = 5
 
 # // How many seconds a player has to answer each question
 ANSWER_TIMEOUT = 30

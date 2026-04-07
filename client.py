@@ -18,7 +18,7 @@ UDP_PORT = 5001
 BUFFER_SIZE = 1024
 
 # // Socket timeout in seconds
-SOCKET_TIMEOUT = 30
+SOCKET_TIMEOUT = 100
 
 # // Turn this off later if you do not want debug messages
 DEBUG_MODE = True
