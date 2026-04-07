@@ -1,5 +1,6 @@
 import socket
 import sys
+import threading
 
 # ============================================================
 # // CONFIG SECTION - EASY TO CHANGE
@@ -215,16 +216,47 @@ def display_game_over(parts):
 # ============================================================
 # // ANSWER FUNCTIONS
 # ============================================================
+def timed_input(prompt_text, timeout_seconds):
+    # // This function gives the user only a limited time to type an answer
+    # // If time runs out, it returns None
+
+    user_input = {"value": None}
+
+    def read_input():
+        try:
+            user_input["value"] = input(prompt_text).strip()
+        except EOFError:
+            user_input["value"] = None
+
+    input_thread = threading.Thread(target=read_input, daemon=True)
+    input_thread.start()
+    input_thread.join(timeout_seconds)
+
+    if input_thread.is_alive():
+        return None
+
+    return user_input["value"]
 
 def get_player_answer():
-    # // Only allow answers from 1 to 4
+    # // Give the player 30 seconds to answer
+    # // Change this number if you want the client-side wait time to match a different server timer
+    answer_timeout = 30
+
+    print(f"You have {answer_timeout} seconds to answer.")
+
     while True:
-        answer = safe_input("Enter your answer (1-4): ")
+        answer = timed_input("Enter your answer (1-4): ", answer_timeout)
+
+        # // If time ran out, return None so the client skips sending an answer
+        if answer is None:
+            print("\nTime is up. No answer was submitted.")
+            return None
+
         if answer in ["1", "2", "3", "4"]:
             return answer
+
         print("Invalid input. Please enter 1, 2, 3, or 4.")
-
-
+        
 def send_answer(udp_socket, question_id, answer):
     # // Send the chosen answer back to the server using UDP
     try:
@@ -262,7 +294,10 @@ def handle_game_loop(udp_socket):
                 question_id = display_question(parts)
                 if question_id is not None:
                     answer = get_player_answer()
-                    send_answer(udp_socket, question_id, answer)
+
+                    # // Only send an answer if the player answered before time ran out
+                    if answer is not None:
+                        send_answer(udp_socket, question_id, answer)
 
             elif message_type == "RESULT":
                 if len(parts) > 1:
