@@ -22,7 +22,7 @@ BUFFER_SIZE = 1024
 SOCKET_TIMEOUT = 100
 
 # // Turn this off later if you do not want debug messages
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 
 # ============================================================
