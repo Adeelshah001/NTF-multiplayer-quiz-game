@@ -482,10 +482,6 @@ def run_game():
         collect_answers_for_question(question_id)
 
         correct_answer_number = question["answer"]
-        # // Support both 0-based and 1-based answer formats
-        # // 0,1,2,3 becomes 1,2,3,4
-        if 0 <= correct_answer_number <= 3:
-            correct_answer_number += 1
         correct_answer_text = question["choices"][correct_answer_number - 1]
 
         # // Find the first correct player in the order answers were received
