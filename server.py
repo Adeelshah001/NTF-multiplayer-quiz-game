@@ -290,9 +290,6 @@ def run_tiebreaker_round():
 
     # // Normalize answer index
     correct_answer_number = tiebreaker_question["answer"]
-    if 0 <= correct_answer_number <= 3:
-        correct_answer_number += 1
-
     correct_answer_text = tiebreaker_question["choices"][correct_answer_number - 1]
 
     winner_id = None
