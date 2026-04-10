@@ -1,6 +1,7 @@
 import socket
 import random
 import time
+from data_manager import update_leaderboard, get_sorted_leaderboard, add_game_history
 
 # ============================================================
 # // CONFIG SECTION - EASY TO CHANGE
@@ -187,6 +188,131 @@ def get_expected_players():
                 return value
         print(f"Please enter a number from 1 to {MAX_PLAYERS}.")
 
+# ============================================================
+# // END OF GAME HELPERS
+# ============================================================
+
+def get_final_scores_dict():
+    # // Return final scores in a simple dictionary format
+    # // Example: {"Adeel": 3, "Jasmeet": 2}
+    final_scores = {}
+
+    for player_id, info in players.items():
+        final_scores[info["name"]] = info["score"]
+
+    return final_scores
+
+
+def get_tied_top_players():
+    # // Find players tied for the highest score
+    if not players:
+        return []
+
+    highest_score = max(info["score"] for info in players.values())
+
+    tied_players = []
+    for player_id, info in players.items():
+        if info["score"] == highest_score:
+            tied_players.append(player_id)
+
+    return tied_players
+
+
+def save_game_results():
+    # // Save the current game into leaderboard.json and games_history.json
+    final_scores = get_final_scores_dict()
+
+    # // Update cumulative leaderboard for each player
+    for player_name, score in final_scores.items():
+        update_leaderboard(player_name, score)
+
+    # // Save this one game into history
+    add_game_history(final_scores)
+
+
+def broadcast_leaderboard():
+    # // Send the cumulative leaderboard to all clients after the game
+    # // Example:
+    # // LEADERBOARD|Adeel:5|Jasmeet:3
+    sorted_leaderboard = get_sorted_leaderboard()
+
+    message = "LEADERBOARD"
+    for player_name, stats in sorted_leaderboard:
+        message += f"|{player_name}:{stats['cumulative_score']}"
+
+    broadcast_udp(message)
+
+
+def print_leaderboard_to_server():
+    # // Print the cumulative leaderboard in the server terminal
+    print("\nCUMULATIVE LEADERBOARD")
+    print("-" * 40)
+
+    sorted_leaderboard = get_sorted_leaderboard()
+
+    for rank, (player_name, stats) in enumerate(sorted_leaderboard, start=1):
+        print(
+            f"{rank}. {player_name} - "
+            f"{stats['cumulative_score']} total points "
+            f"across {stats['games_played']} game(s)"
+        )
+
+    print("-" * 40)
+
+
+def run_tiebreaker_round():
+    # // Run one extra question for only the tied top players
+    tied_players = get_tied_top_players()
+
+    # // If fewer than 2 players are tied, no tiebreaker is needed
+    if len(tied_players) < 2:
+        return
+
+    print("\nTiebreaker detected.")
+    broadcast_udp("TIEBREAKER|Top players are tied. Tiebreaker round starting.")
+
+    # // Pick one extra random question for the tiebreaker
+    tiebreaker_question = random.choice(questions)
+    question_id = "TB1"
+
+    question_message = (
+        f"QUESTION|{question_id}|{tiebreaker_question['prompt']}|"
+        f"{tiebreaker_question['choices'][0]}|{tiebreaker_question['choices'][1]}|"
+        f"{tiebreaker_question['choices'][2]}|{tiebreaker_question['choices'][3]}"
+    )
+
+    broadcast_udp(f"INFO|Tied players have {ANSWER_TIMEOUT} seconds to answer.")
+    broadcast_udp(question_message)
+    print(f"Sent tiebreaker question: {tiebreaker_question['prompt']}")
+
+    # // Collect answers the same way as normal rounds
+    collect_answers_for_question(question_id)
+
+    # // Normalize answer index
+    correct_answer_number = tiebreaker_question["answer"]
+    if 0 <= correct_answer_number <= 3:
+        correct_answer_number += 1
+
+    correct_answer_text = tiebreaker_question["choices"][correct_answer_number - 1]
+
+    winner_id = None
+
+    # // Only tied players are allowed to win the tiebreaker
+    for player_id, answer_number in answers.items():
+        if player_id in tied_players and answer_number == correct_answer_number:
+            winner_id = player_id
+            break
+
+    if winner_id is not None:
+        players[winner_id]["score"] += 1
+        winner_name = get_player_name(winner_id)
+        broadcast_udp(f"RESULT|{winner_name} won the tiebreaker.")
+        broadcast_udp(f"INFO|Correct answer: {correct_answer_number}. {correct_answer_text}")
+        print(f"Tiebreaker winner: {winner_name}")
+    else:
+        broadcast_udp("RESULT|No tied player answered the tiebreaker correctly.")
+        broadcast_udp(f"INFO|Correct answer: {correct_answer_number}. {correct_answer_text}")
+        print("No winner from tiebreaker round.")
 
 # ============================================================
 # // TCP HANDSHAKE / JOIN PHASE
@@ -356,6 +482,10 @@ def run_game():
         collect_answers_for_question(question_id)
 
         correct_answer_number = question["answer"]
+        # // Support both 0-based and 1-based answer formats
+        # // 0,1,2,3 becomes 1,2,3,4
+        if 0 <= correct_answer_number <= 3:
+            correct_answer_number += 1
         correct_answer_text = question["choices"][correct_answer_number - 1]
 
         # // Find the first correct player in the order answers were received
@@ -381,14 +511,29 @@ def run_game():
 
 
 def send_game_over():
+    # // Before ending the game, check if top players are tied
+    tied_players = get_tied_top_players()
+
+    if len(tied_players) > 1:
+        run_tiebreaker_round()
+
+    # // Save results after all normal rounds and possible tiebreaker
+    save_game_results()
+
     # // Send the final scoreboard to all clients
     final_message = "GAMEOVER"
     for player_id, info in players.items():
         final_message += f"|{info['name']}:{info['score']}"
 
     broadcast_udp(final_message)
-    print("Game finished.")
 
+    # // Send cumulative leaderboard after the game
+    broadcast_leaderboard()
+
+    # // Also print the leaderboard in the server terminal
+    print_leaderboard_to_server()
+    broadcast_udp("EXIT|Game session ended. Closing client.")    
+    print("Game finished.")
 
 # ============================================================
 # // MAIN PROGRAM

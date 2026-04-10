@@ -202,6 +202,15 @@ def display_scoreboard(parts):
         print(item)
     print("-" * 30)
 
+def display_leaderboard(parts):
+    # // Example: LEADERBOARD|Adeel:5|Jasmeet:3
+    print("\nCUMULATIVE LEADERBOARD")
+    print("-" * 30)
+
+    for item in parts[1:]:
+        print(item)
+
+    print("-" * 30)
 
 def display_game_over(parts):
     # // Example: GAMEOVER|Adeel:3|Justin:2
@@ -310,17 +319,25 @@ def handle_game_loop(udp_socket):
             elif message_type == "SCORE":
                 display_scoreboard(parts)
 
+            elif message_type == "LEADERBOARD":
+                display_leaderboard(parts)
+
+            elif message_type == "TIEBREAKER":
+                if len(parts) > 1:
+                    print(f"\n{parts[1]}")
+                else:
+                    print("\nTiebreaker round starting!")
+
             elif message_type == "GAMEOVER":
                 display_game_over(parts)
-                client_running = False
 
+    # // Do not close immediately because leaderboard may arrive right after
             elif message_type == "EXIT":
                 if len(parts) > 1:
                     print(parts[1])
                 else:
                     print("Server closed the session.")
                 client_running = False
-
             else:
                 print(f"Unknown message from server: {message}")
 
